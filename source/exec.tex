@@ -467,6 +467,8 @@ namespace std::execution {
   struct @\libglobal{get_forward_progress_guarantee_t}@ { @\unspec@ };
   template<class CPO>
     struct @\libglobal{get_completion_scheduler_t}@ { @\unspec@ };
+  template<class CPO>
+    struct @\libglobal{get_completion_domain_t}@ { @\unspec@ };
   struct get_await_completion_adaptor_t { @\unspec@ };
 
   inline constexpr get_domain_t @\libglobal{get_domain}@{};
@@ -476,6 +478,8 @@ namespace std::execution {
   inline constexpr get_forward_progress_guarantee_t @\libglobal{get_forward_progress_guarantee}@{};
   template<class CPO>
     constexpr get_completion_scheduler_t<CPO> @\libglobal{get_completion_scheduler}@{};
+  template<class CPO>
+    constexpr get_completion_scheduler_t<CPO> @\libglobal{get_completion_domain}@{};
   inline constexpr get_await_completion_adaptor_t get_await_completion_adaptor{};
 
   struct @\libglobal{get_env_t}@ { @\unspec@ };
@@ -483,6 +487,10 @@ namespace std::execution {
 
   template<class T>
     using @\libglobal{env_of_t}@ = decltype(get_env(declval<T>()));
+
+  // \ref{exec.domain.indeterminate}, execution domains
+  template<class... Domains>
+    struct indeterminate_domain;
 
   // \ref{exec.domain.default}, execution domains
   struct default_domain;
@@ -571,15 +579,9 @@ namespace std::execution {
     using tag_of_t = @\seebelow@;
 
   // \ref{exec.snd.transform}, sender transformations
-  template<class Domain, @\libconcept{sender}@ Sndr, @\exposconcept{queryable}@... Env>
-      requires (sizeof...(Env) <= 1)
-    constexpr @\libconcept{sender}@ decltype(auto) transform_sender(
-      Domain dom, Sndr&& sndr, const Env&... env) noexcept(@\seebelow@);
-
-  // \ref{exec.snd.transform.env}, environment transformations
-  template<class Domain, @\libconcept{sender}@ Sndr, @\exposconcept{queryable}@ Env>
-    constexpr @\exposconcept{queryable}@ decltype(auto) transform_env(
-      Domain dom, Sndr&& sndr, Env&& env) noexcept;
+  template<@\libconcept{sender}@ Sndr, @\exposconcept{queryable}@ Env>
+    constexpr decltype(auto) transform_sender(Sndr&& sndr,
+      const Env& env) noexcept(@\seebelow@);
 
   // \ref{exec.snd.apply}, sender algorithm application
   template<class Domain, class Tag, @\libconcept{sender}@ Sndr, class... Args>
@@ -829,6 +831,26 @@ it is a specialization of the \tcode{completion_signatures} class template.
 
 \rSec1[exec.queries]{Queries}
 
+\rSec2[exec.queries.expos]{Query utilities}
+
+\pnum
+\ref{exec.queries} makes use of the following exposition-only entities.
+
+\pnum
+For subexpressions \tcode{q} and \tcode{tag} and pack \tcode{args},
+let \tcode{\exposid{TRY-QUERY}(q, tag, args...)} be expression-equivalent to
+\tcode{\exposid{AS-CONST}(q).query(tag, args...)}
+if that expression is well-formed, and
+\tcode{\exposid{AS-CONST}(q).query(tag)} otherwise
+except that \tcode{args...} is evaluated.
+
+\pnum
+For subexpressions \tcode{q} and \tcode{tag} and pack \tcode{args},
+let \tcode{\exposid{HIDE-SCHED}(q)} be an object \tcode{o} such that
+\tcode{o.query(\brk{}tag, args...)} is ill-formed when the decayed type of \tcode{tag} is
+\tcode{get_scheduler_t} or \tcode{get_domain_t}, and
+\tcode{q.query(tag, args...)} otherwise.
+
 \rSec2[exec.fwd.env]{\tcode{forwarding_query}}
 
 \pnum
@@ -937,7 +959,14 @@ for its associated execution domain tag.
 The name \tcode{get_domain} denotes a query object.
 For a subexpression \tcode{env},
 \tcode{get_domain(env)} is expression-equivalent to
-\tcode{\exposid{MANDATE-NOTHROW}(\exposid{AS-CONST}(env).query(get_domain))}.
+\tcode{\exposid{MANDATE-NOTHROW}(D())},
+where \tcode{D} is the type of the first
+of the following expressions that is well-formed:
+\begin{itemize}
+\item \tcode{auto(\exposid{AS-CONST}(env).query(get_domain))}.
+\item \tcode{get_completion_domain<set_value_t>(get_scheduler(env), \exposid{HIDE-SCHED}(env))}.
+\item \tcode{default_domain()}, except that \tcode{env} is evaluated.
+\end{itemize}.
 
 \pnum
 \tcode{forwarding_query(execution::get_domain)} is
@@ -952,7 +981,9 @@ a core constant expression and has value \tcode{true}.
 The name \tcode{get_scheduler} denotes a query object.
 For a subexpression \tcode{env},
 \tcode{get_scheduler(env)} is expression-equivalent to
-\tcode{\exposid{MANDATE-NOTHROW}(\exposid{AS-CONST}(env).query(get_scheduler))}.
+\tcode{get_completion_scheduler<set_value_t>(
+\exposid{MANDATE-NOTHROW}(\exposid{AS-CONST}(env)\brk{}.query(get_scheduler)),
+\exposid{HIDE-SCHED}(env))}.
 
 \mandates
 If the expression above is well-formed,
@@ -1036,10 +1067,10 @@ The name \tcode{get_completion_scheduler} denotes a query object template.
 Let \exposid{completion-fn} be a completion function\iref{exec.async.ops};
 let \exposid{completion-fn-tag} be
 the associated completion tag of \exposid{completion-fn};
-let \tcode{args} be a pack of subexpressions; and
+let \tcode{args} and \tcode{envs} be packs of subexpressions; and
 let \tcode{sndr} be a subexpression
 such that \tcode{\libconcept{sender}<decltype((sndr))>} is \tcode{true} and
-\tcode{get_completion_scheduler<\exposid{completion-fn-tag}>(get_env(sndr))}
+\tcode{get_completion_scheduler<\exposid{completion-fn-tag}>(get_env(sndr), envs...)}
 is well-formed and denotes a scheduler \tcode{sch}.
 
 \pnum
@@ -1048,18 +1079,52 @@ the completion scheduler associated with a completion tag
 from a sender's attributes.
 
 \pnum
-For a subexpression \tcode{q},
-the expression \tcode{get_completion_scheduler<\exposid{completion-fn-tag}>(q)}
+For subexpression \tcode{sch1} and pack \tcode{envs},
+let \tcode{sch2} be
+\tcode{\exposid{TRY-QUERY}(sch1, get_completion_scheduler<set_value_t>, envs...)} and
+let \tcode{\exposid{RECURSE-QUERY}(sch1, envs...)} be
+expression-equivalent to \tcode{sch1}
+if \tcode{sch2} is ill-formed or
+if \tcode{sch1} and \tcode{sch2} have the same type and compare equal;
+otherwise, \tcode{\exposid{RECURSE-QUERY}(sch2, envs...)}.
+
+\pnum
+For a subexpression \tcode{q} and pack \tcode{envs},
+the expression \tcode{get_completion_scheduler<\exposid{completion-fn-tag}>(q, envs...)}
 is ill-formed if \exposid{completion-fn-tag} is not one of
 \tcode{set_value_t}, \tcode{set_error_t}, or \tcode{set_stopped_t}.
 Otherwise, \tcode{get_completion_scheduler<\exposid{completion-fn-tag}>(q)}
 is expression-equivalent to
+\begin{itemize}
+\item
 \begin{codeblock}
-@\exposid{MANDATE-NOTHROW}@(@\exposid{AS-CONST}@(q).query(get_completion_scheduler<@\exposid{completion-fn-tag}@>))
+@\exposid{MANDATE-NOTHROW}@(@\exposid{RECURSE-QUERY}@(
+  @\exposid{TRY-QUERY}@(q, get_completion_scheduler<@\exposid{completion-fn-tag}@>, envs...), envs...))
 \end{codeblock}
+if that expression is well-formed,
+except that \tcode{envs...} is evaluated only once.
+\item
+Otherwise, \tcode{auto(q)}
+if the type of \tcode{q} satisfies \libconcept{scheduler} and
+\tcode{envs} is not an empty pack,
+except that \tcode{envs...} is evaluated.
+\item
+Otherwise, \tcode{get_completion_scheduler<@\exposid{completion-fn-tag}@>(q, envs...)}
+is ill-formed.
+\end{itemize}
 \mandates
-If the expression above is well-formed,
+If \tcode{get_completion_scheduler<@\exposid{completion-fn-tag}@>(q, envs...)}
+is well-formed,
 its type satisfies \libconcept{scheduler}.
+
+\pnum
+For a type \tcode{Tag}, subexpression \tcode{sndr}, and pack \tcode{envs},
+let \tcode{CS} be
+\tcode{completion_signatures_of_t<decay_t<decltype((sndr))>, decltype((envs))...>}.
+If both \tcode{get_completion_scheduler<Tag>(get_env(\newline sndr), envs...)} and
+\tcode{CS} are well-formed and
+\tcode{CS().\exposid{count-of}(Tag()) == 0} is \tcode{true},
+the program is ill-formed.
 
 \pnum
 If an asynchronous operation
@@ -1072,6 +1137,80 @@ that belongs to \tcode{sch}'s associated execution resource.
 \pnum
 The expression
 \tcode{forwarding_query(get_completion_scheduler<\exposid{completion-fn-tag}>)}
+is a core constant expression and has value \tcode{true}.
+
+\rSec2[exec.get.compl.domain]{\tcode{execution::get_completion_domain}}
+
+\pnum
+\tcode{get_completion_domain<\exposid{completion-tag}>}
+obtains the completion domain associated with a completion tag
+from a sender's attributes.
+
+\pnum
+The name \tcode{get_completion_domain} denotes a query object template.
+For a subexpression \tcode{attrs} and pack \tcode{envs},
+the expression \tcode{get_completion_domain<\exposid{completion-tag}>(attrs, envs...)}
+is ill-formed if \exposid{completion-tag} is not one of
+\tcode{void},
+\tcode{set_value_t},
+\tcode{set_error_t}, or
+\tcode{set_stopped_t}.
+Otherwise,\newline
+\tcode{get_completion_domain<\exposid{completion-tag}>(attrs, envs...)}
+is expression-equivalent to\newline
+\tcode{\exposid{MANDATE-NOTHROW}(D())},
+where \tcode{D} is:
+\begin{itemize}
+\item
+The type of
+\tcode{\exposid{TRY-QUERY}(attrs, get_completion_domain<\exposid{completion-tag}>, envs...)}
+if that expression is well-formed.
+\item
+Otherwise, the type of
+\tcode{get_completion_domain<set_value_t>(attrs, envs...)}
+if \exposid{completion-tag} is void.
+\item
+Otherwise, the type of
+\begin{codeblock}
+@\exposid{TRY-QUERY}@(get_completion_scheduler<completion-tag>(attrs, envs...),
+          get_completion_domain<set_value_t>, envs...)
+\end{codeblock}
+if that expression is well-formed.
+\item
+Otherwise, \tcode{default_domain} if
+\tcode{\libconcept{scheduler}<decltype((attrs))>} is \tcode{true} and
+\tcode{envs} is not an empty pack.
+\item
+Otherwise, \tcode{get_completion_domain<\exposid{completion-tag}>(attrs, envs...)}
+is ill-formed.
+\end{itemize}
+
+\pnum
+For a type \tcode{Tag}, subexpression \tcode{sndr}, and pack \tcode{envs},
+let \tcode{CS} be
+\tcode{completion_signatures_of_t<decay_t<decltype((sndr))>, decltype((envs))...>}.
+If both \tcode{get_completion_domain<Tag>(get_env(sndr), envs...)} and
+\tcode{CS} are well-formed and
+\tcode{CS().\exposid{count-of}(Tag()) == 0} is \tcode{true},
+the program is ill-formed.
+
+\pnum
+Let \exposid{completion-fn} be a completion function\iref{exec.async.ops};
+let \exposid{completion-tag} be the associated completion tag of \exposid{completion-fn};
+let \tcode{args} and \tcode{envs} be packs of subexpressions; and
+let \tcode{sndr} be a subexpression such that
+\tcode{\libconcept{sender}<decltype((sndr))>} is \tcode{true} and
+\tcode{get_completion_domain<\exposid{completion-tag}>(get_env(sndr), envs...)}
+is well-formed and denotes a domain tag \tcode{D}.
+If an asynchronous operation created by connecting
+\tcode{sndr} with a receiver \tcode{rcvr}
+causes the evaluation of \tcode{\exposid{completion-fn}(rcvr, args...)},
+the behavior is undefined
+unless the evaluation happens on an execution agent of an execution resource
+whose associated execution domain tag is \tcode{D}.
+
+The expression
+\tcode{forwarding_query(get_completion_domain<\exposid{completion-tag}>)}
 is a core constant expression and has value \tcode{true}.
 
 \rSec2[exec.get.await.adapt]{\tcode{execution::get_await_completion_adaptor}}
@@ -1111,9 +1250,6 @@ namespace std::execution {
       @\exposconcept{queryable}@<Sch> &&
       requires(Sch&& sch) {
         { schedule(std::forward<Sch>(sch)) } -> @\libconcept{sender}@;
-        { auto(get_completion_scheduler<set_value_t>(
-            get_env(schedule(std::forward<Sch>(sch))))) }
-              -> @\libconcept{same_as}@<remove_cvref_t<Sch>>;
       } &&
       @\libconcept{equality_comparable}@<remove_cvref_t<Sch>> &&
       @\libconcept{copyable}@<remove_cvref_t<Sch>>;
@@ -1148,15 +1284,27 @@ the same associated execution resource.
 
 \pnum
 For a given scheduler expression \tcode{sch},
-the expression
+if the expression
 \tcode{get_completion_scheduler<set_value_t>(get_env(schedule(sch)))}
-shall compare equal to \tcode{sch}.
+is well-formed,
+it shall compare equal to \tcode{sch}.
 
 \pnum
 For a given scheduler expression \tcode{sch},
-if the expression \tcode{get_domain(sch)} is well-formed,
-then the expression \tcode{get_domain(get_env(schedule(sch)))}
-is also well-formed and has the same type.
+type \tcode{T}, and
+pack of subexpressions \tcode{envs},
+the following expressions are either both ill-formed, or
+both well-formed with the same type:
+\begin{itemize}
+\item \tcode{get_completion_domain<T>(sch, envs...)}
+\item \tcode{get_completion_domain<T>(get_env(schedule(sch)), envs...)}
+\end{itemize}
+Likewise, the following expressions are either both ill-formed, or
+both well-formed with the same type and value:
+\begin{itemize}
+\item \tcode{get_completion_scheduler<T>(sch, envs...)}
+\item \tcode{get_completion_scheduler<T>(get_env(schedule(sch)), envs...)}
+\end{itemize}
 
 \pnum
 A scheduler type's destructor shall not block
@@ -1336,6 +1484,8 @@ starting the resulting operation state\iref{exec.async.ops}
 necessarily results in the potential evaluation\iref{basic.def.odr} of
 a set of completion operations
 whose first argument is a subexpression equal to \tcode{rcvr}.
+
+\pnum
 Let \tcode{Sigs} be a pack of completion signatures corresponding to
 this set of completion operations, and
 let \tcode{CS} be
@@ -1347,6 +1497,56 @@ the set of whose template arguments is \tcode{Sigs}.
 If none of the types in \tcode{Sigs} are dependent on the type \tcode{Env}, then
 the expression \tcode{get_completion_signatures<Sndr>()} is well-formed and
 its type is \tcode{CS}.
+
+\pnum
+Each completion operation can potentially be evaluated
+on one of several different execution agents
+as determined by the semantics of the algorithm,
+the environment of the receiver, and
+the completions of any child senders.
+For a completion tag \tcode{T},
+let \tcode{DsT} be a pack comprised of the set of domain tags
+associated with the execution agents that could potentially evaluate
+any of the operation's completions with tag \tcode{T}.
+If there are no potentially evaluated completion operations
+with tag type \tcode{T},
+then \tcode{get_completion_domain<T>(get_env(sndr), env)} is ill-formed;
+otherwise, it has type \tcode{\exposid{COMMON-DOMAIN}<DsT...>}\iref{exec.snd.expos}.
+\begin{example}
+Let \tcode{sndr2} be the sender \tcode{then(sndr, fn)}.
+\tcode{sndr2} has the same \tcode{set_value} completion domain tag as \tcode{sndr},
+but if \tcode{fn}'s evaluation is potentially throwing,
+\tcode{sndr}'s \tcode{set_error} completion domain tag would be
+the \exposid{COMMON-DOMAIN} of \tcode{sndr}'s value and error completion domain tags,
+in accordance with the semantics of the then algorithm\iref{exec.then}.
+\end{example}
+
+\pnum
+If \tcode{sndr} can determine that all of its completion operations
+with tag \tcode{T} happen on execution agents
+associated with a particular scheduler \tcode{sch}
+(as determined by the semantics of the algorithm,
+the environment of the receiver, and
+the completion schedulers of any child senders),
+then \tcode{get_completion_scheduler<T>(get_env(sndr), env)}
+is well-formed and has the type and value of \tcode{sch};
+otherwise, it is ill-formed.
+\begin{example}
+Let \tcode{sndr2} be the sender from the example above.
+The \tcode{set_value} completion scheduler of \tcode{sndr2} is
+the \tcode{set_value} completion scheduler of \tcode{sndr}, if any.
+But \tcode{sndr2} can only report a \tcode{set_error} completion scheduler
+when invocations of \tcode{fn} are not potentially throwing or
+when \tcode{sndr} has no \tcode{set_error} completions.
+When \tcode{fn} can throw,
+\tcode{sndr2} could complete with \tcode{set_error} either
+by forwarding an error completion from \tcode{sndr} or
+by completing with the exception thrown by \tcode{fn},
+which would happen on an agent associated with \tcode{sndr}'s
+\tcode{set_value} completion scheduler.
+\end{example}
+
+\pnum
 If a user-provided implementation of the algorithm
 that produced \tcode{sndr} is selected instead of the default:
 
@@ -1398,13 +1598,15 @@ The type \tcode{\exposid{FWD-ENV-T}(Env)} is
 \tcode{decltype(\exposid{FWD-ENV}(declval<Env>()))}.
 
 \pnum
-For a query object \tcode{q} and a subexpression \tcode{v},
+For a query object \tcode{q},
+a subexpression \tcode{v}, and
+a pack of subexpressions \tcode{args},
 \tcode{\exposid{MAKE-ENV}(q, v)} is an expression \tcode{env}
 whose type satisfies \exposconcept{queryable}
-such that the result of \tcode{env.query(q)} has
+such that the result of \tcode{env.query(q, args...)} has
 a value equal to \tcode{v}\iref{concepts.equality}.
 Unless otherwise stated,
-the object to which \tcode{env.query(q)} refers remains valid
+the object to which \tcode{env.query(q, args...)} refers remains valid
 while \tcode{env} remains valid.
 
 \pnum
@@ -1431,19 +1633,30 @@ with different types and value categories
 in different contexts for the same arguments.
 
 \pnum
+For a pack of subexpressions \tcode{domains},
+\tcode{\exposid{COMMON-DOMAIN}(domains...)} is expression-equivalent to
+\tcode{common_type_t<decltype(auto(domains))...>()}
+if that expression is well-formed, and
+\tcode{indeterminate_domain<\brk{}Ds...>()} otherwise,
+where \tcode{Ds} is the pack of types consisting of
+\tcode{decltype(auto(domains))...} with duplicate types removed.
+
+\pnum
+For a type \tcode{Tag}, subexpression \tcode{sndr}, and pack \tcode{envs},
+\tcode{\exposid{COMPL-DOMAIN}(Tag, sndr, envs)}
+is expression-equivalent to \tcode{D()},
+where \tcode{D} is
+the type of \tcode{get_completion_domain<Tag>(get_env(sndr), envs...)}
+if that expression is well-formed or \tcode{envs} is an empty pack, and
+\tcode{indeterminate_domain()} otherwise.
+
+\pnum
 For a scheduler \tcode{sch},
-\tcode{\exposid{SCHED-ATTRS}(sch)} is an expression \tcode{o1}
+\tcode{\exposid{SCHED-ENV}(sch)} is an expression \tcode{o}
 whose type satisfies \exposconcept{queryable}
-such that \tcode{o1.query(get_completion_scheduler<Tag>)} is
-an expression with the same type and value as \tcode{sch}
-where \tcode{Tag} is one of \tcode{set_value_t} or \tcode{set_stopped_t}, and
-such that \tcode{o1.query(get_domain)} is expression-equivalent to
-\tcode{sch.query(get_domain)}.
-\tcode{\exposid{SCHED-ENV}(sch)} is an expression \tcode{o2}
-whose type satisfies \exposconcept{queryable}
-such that \tcode{o2.query(get_scheduler)} is a prvalue
+such that \tcode{o.query(\brk{}get_scheduler)} is a prvalue
 with the same type and value as \tcode{sch}, and
-such that \tcode{o2.query(get_domain)} is expression-equivalent to
+such that \tcode{o.query(get_domain)} is expression-equivalent to
 \tcode{sch.query(get_domain)}.
 
 \pnum
@@ -1468,31 +1681,6 @@ if \tcode{expr} is potentially-throwing; otherwise, \tcode{expr}.
 except that \tcode{rcvr} is evaluated only once.
 
 \begin{itemdecl}
-template<class Default = default_domain, class Sndr>
-  constexpr auto @\exposid{completion-domain}@(const Sndr& sndr) noexcept;
-\end{itemdecl}
-
-\begin{itemdescr}
-\pnum
-\tcode{\exposid{COMPL-DOMAIN}(T)} is the type of the expression
-\tcode{get_domain(get_completion_scheduler<T>(get_env(sndr)))}.
-
-\pnum
-\effects
-If all of the types
-\tcode{\exposid{COMPL-DOMAIN}(set_value_t)},
-\tcode{\exposid{COMPL-DOMAIN}(set_error_t)}, and\linebreak
-\tcode{\exposid{COMPL-DOMAIN}(set_stopped_t)} are ill-formed,
-\tcode{completion-domain<Default>(sndr)} is
-a default-constructed prvalue of type \tcode{Default}.
-Otherwise, if they all share a common type\iref{meta.trans.other}
-(ignoring those types that are ill-formed),
-then \tcode{\exposid{completion-domain}<Default>(sndr)} is
-a default-constructed prvalue of that type.
-Otherwise, \tcode{\exposid{completion-domain}<Default>(sndr)} is ill-formed.
-\end{itemdescr}
-
-\begin{itemdecl}
 template<class Tag, class Env, class Default>
   constexpr decltype(auto) @\exposid{query-with-default}@(
     Tag, const Env& env, Default&& value) noexcept(@\seebelow@);
@@ -1511,77 +1699,6 @@ otherwise, it is \tcode{static_cast<Default>(std::forward<Default>(value))}.
 \pnum
 \remarks
 The expression in the noexcept clause is \tcode{noexcept(e)}.
-\end{itemdescr}
-
-\begin{itemdecl}
-template<class Sndr>
-  constexpr auto @\exposid{get-domain-early}@(const Sndr& sndr) noexcept;
-\end{itemdecl}
-
-\begin{itemdescr}
-\pnum
-\effects
-Equivalent to:
-\begin{codeblock}
-return Domain();
-\end{codeblock}
-where \tcode{Domain} is
-the decayed type of the first of the following expressions that is well-formed:
-\begin{itemize}
-\item \tcode{get_domain(get_env(sndr))}
-\item \tcode{\exposid{completion-domain}(sndr)}
-\item \tcode{default_domain()}
-\end{itemize}
-\end{itemdescr}
-
-\begin{itemdecl}
-template<class Sndr, class Env>
-  constexpr auto @\exposid{get-domain-late}@(const Sndr& sndr, const Env& env) noexcept;
-\end{itemdecl}
-
-\begin{itemdescr}
-\pnum
-\effects
-Equivalent to:
-\begin{itemize}
-\item
-If \tcode{\exposconcept{sender-for}<Sndr, continues_on_t>} is \tcode{true}, then
-\begin{codeblock}
-return Domain();
-\end{codeblock}
-where \tcode{Domain} is the type of the following expression:
-\begin{codeblock}
-[] {
-  auto [_, sch, _] = sndr;
-  return @\exposid{query-with-default}@(get_domain, sch, default_domain());
-}();
-\end{codeblock}
-\begin{note}
-The \tcode{continues_on} algorithm works
-in tandem with \tcode{schedule_from}\iref{exec.schedule.from}
-to give scheduler authors a way to customize both
-how to transition onto (\tcode{continues_on}) and off of (\tcode{schedule_from})
-a given execution context.
-Thus, \tcode{continues_on} ignores the domain of the predecessor and
-uses the domain of the destination scheduler to select a customization,
-a property that is unique to \tcode{continues_on}.
-That is why it is given special treatment here.
-\end{note}
-\item
-Otherwise,
-\begin{codeblock}
-return Domain();
-\end{codeblock}
-where \tcode{Domain} is the first of the following expressions
-that is well-formed and whose type is not \tcode{void}:
-\begin{itemize}
-\item \tcode{get_domain(get_env(sndr))}
-\item \tcode{\exposid{completion-domain}<void>(sndr)}
-\item \tcode{get_domain(env)}
-\item \tcode{get_domain(get_scheduler(env))}
-\item \tcode{default_domain()}
-\end{itemize}
-\end{itemize}
 \end{itemdescr}
 
 \pnum
@@ -1894,7 +2011,6 @@ noexcept(@\exposid{connect-all}@(this, std::forward<Sndr>(sndr), @\exposid{indic
 \begin{codeblock}
 namespace std::execution {
   struct @\exposidnc{default-impls}@ {                                        // \expos
-    static constexpr auto @\exposidnc{get-attrs}@ = @\seebelownc@;                // \expos
     static constexpr auto @\exposidnc{get-env}@ = @\seebelownc@;                  // \expos
     static constexpr auto @\exposidnc{get-state}@ = @\seebelownc@;                // \expos
     static constexpr auto @\exposidnc{start}@ = @\seebelownc@;                    // \expos
@@ -1906,18 +2022,6 @@ namespace std::execution {
 
   template<class Tag>
   struct @\exposidnc{impls-for}@ : @\exposidnc{default-impls}@ {};                          // \expos
-}
-\end{codeblock}
-
-\pnum
-The member \tcode{\exposid{default-impls}::\exposid{get-attrs}}
-is initialized with a callable object equivalent to the following lambda:
-\begin{codeblock}
-[](const auto&, const auto&... child) noexcept -> decltype(auto) {
-  if constexpr (sizeof...(child) == 1)
-    return (@\exposid{FWD-ENV}@(get_env(child)), ...);
-  else
-    return env<>();
 }
 \end{codeblock}
 
@@ -2106,6 +2210,19 @@ struct @\exposid{not-a-sender}@ {
 \end{codeblock}
 
 \pnum
+\indexlibraryglobal{\exposid{not-a-scheduler}}%
+\indexlibrarymember{schedule}{\exposid{not-a-sender}}%
+\begin{codeblock}
+struct @\exposid{not-a-scheduler}@ {
+  using scheduler_concept = scheduler_t;
+
+  constexpr auto schedule() const noexcept {
+    return @\exposid{not-a-sender}@();
+  }
+};
+\end{codeblock}
+
+\pnum
 \indexlibraryglobal{\exposid{decay-copyable-result-datums}}
 %%FIXME: Should this be in a namespace?
 \begin{codeblock}
@@ -2149,6 +2266,48 @@ where \tcode{e} is the corresponding element of \tcode{obj},
 otherwise, returns \tcode{make_obj_using_allocator<P>(\exposid{alloc}, std::forward<T>(obj))}.
 \end{itemize}
 \end{itemdescr}
+
+\indexlibraryglobal{\exposid{call-with-default}}
+\begin{itemdecl}
+template<class Fn, class Default, class... Args>
+  constexpr decltype(auto) @\exposid{call-with-default}@(
+    Fn&& fn, Default&& value, Args&&... args) noexcept(@\seebelow@);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{expr} be the expression
+\tcode{std::forward<Fn>(fn)(std::forward<Args>(args)...)}
+if that expression is well-formed;
+otherwise, it is \tcode{static_cast<Default>(std::forward<Default>(value))}.
+
+\pnum
+\returns
+\tcode{exprs}.
+
+\pnum
+\remarks
+The expression in the \tcode{noexcept} clause is \tcode{noexcept(expr)}.
+\end{itemdescr}
+
+\pnum
+\indexlibraryglobal{\exposid{inline-attrs}}%
+\begin{codeblock}
+template<class Tag>
+struct @\exposid{inline-attrs}@ {
+  @\seebelow@
+};
+\end{codeblock}
+
+\pnum
+For a subexpression \tcode{env},
+\tcode{\exposid{inline-attrs}<Tag>{}.query(get_completion_scheduler<Tag>, env)}
+is expres\-sion-equivalent to \tcode{get_scheduler(env)}.
+
+\pnum
+For a subexpression \tcode{env},
+\tcode{\exposid{inline-attrs}<Tag>{}.query(get_completion_domain<Tag>, env)}
+is expression-equivalent to \tcode{get_domain(env)}.
 
 \rSec2[exec.snd.concepts]{Sender concepts}
 
@@ -2447,6 +2606,65 @@ namespace std::execution {
 Specializations of \exposid{env-promise} are used only for the purpose of type computation;
 its members need not be defined.
 \end{note}
+
+\rSec2[exec.domain.indeterminate]{\tcode{execution::indeterminate_domain}}
+
+\pnum
+\indexlibraryglobal{indeterminate_domain}%
+\indexlibraryctor{indeterminate_domain}%
+\begin{codeblock}
+namespace std::execution {
+  template<class... Domains>
+  struct indeterminate_domain {
+    indeterminate_domain() = default;
+    constexpr indeterminate_domain(auto&&) noexcept {}
+
+    template<class Tag, @\libconcept{sender}@ Sndr, @\exposconcept{queryable}@ Env>
+      static constexpr decltype(auto) transform_sender(Tag, Sndr&& sndr, const Env& env)
+        noexcept(@\seebelow@);
+  };
+}
+\end{codeblock}
+
+\indexlibrarymember{transform_sender}{indeterminate_domain}%
+\begin{itemdecl}
+template<class Tag, @\libconcept{sender}@ Sndr, @\exposconcept{queryable}@ Env>
+  static constexpr decltype(auto) transform_sender(Tag, Sndr&& sndr, const Env& env)
+    noexcept(@\seebelow@);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+For each type \tcode{D} in \tcode{Domains...},
+the expression
+\begin{codeblock}
+D().transform_sender(Tag(), std::forward<Sndr>(sndr), env)
+\end{codeblock}
+is either ill-formed or has the same decayed type as
+\tcode{default_domain().transform_sender(Tag(), std::forward<Sndr>(sndr), env)}.
+
+\pnum
+\returns
+\tcode{default_domain().transform_sender(Tag(), std::forward<Sndr>(sndr), env)}.
+
+\pnum
+\remarks
+For a pack of types \tcode{Ds},
+\begin{codeblock}
+common_type_t<indeterminate_domain<Domains...>, indeterminate_domain<Ds...>>
+\end{codeblock}
+is \tcode{indeterminate_domain<Us...>},
+where \tcode{Us} is a pack that contains each type in
+\tcode{Domains..., Ds...} except with duplicate types removed.
+For a type \tcode{D} that is not a specialization of \tcode{indeterminate_domain},
+\tcode{common_type_t<indeterminate_domain<Domains...>, D>}
+is \tcode{D} if \tcode{Domains} is an empty pack, and
+\begin{codeblock}
+\tcode{common_type_t<indeterminate_domain<Domains...>, indeterminate_domain<D>>}
+\end{codeblock}
+otherwise.
+\end{itemdescr}
 
 \rSec2[exec.domain.default]{\tcode{execution::default_domain}}
 
