@@ -564,6 +564,13 @@ namespace std {
   template<class T, class U = T>
   using @\exposidnc{synth-three-way-result}@ =                  // \expos
     decltype(@\exposidnc{synth-three-way}@(declval<T&>(), declval<U&>()));
+
+  template<class T>
+    concept @\defexposconceptnc{constexpr-wrapper-like}@ =                                 // \expos
+      @\libconcept{convertible_to}@<T, decltype(T::value)> &&
+      @\libconcept{equality_comparable_with}@<T, decltype(T::value)> &&
+      bool_constant<T() == T::value>::value &&
+      bool_constant<static_cast<decltype(T::value)>(T()) == T::value>::value;
 }
 \end{codeblock}
 
