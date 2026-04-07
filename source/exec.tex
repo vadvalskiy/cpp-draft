@@ -7029,7 +7029,7 @@ the lifetime of the object to which \tcode{\placeholder{o}} refers, and
 \begin{codeblock}
 namespace std::execution {
   class @\libglobal{task_scheduler}@ {
-    class @\exposidnc{ts-domain}@;                    // \expos
+    class @\exposid{ts-domain}@;                      // \expos
 
     template<@\libconcept{scheduler}@ Sch>
       class @\exposid{backend-for}@;                  // \expos
@@ -7038,8 +7038,7 @@ namespace std::execution {
     using scheduler_concept = scheduler_t;
 
     template<class Sch, class Allocator = allocator<void>>
-      requires (!@\libconcept{same_as}@<task_scheduler, remove_cvref_t<Sch>>)
-        && @\libconcept{scheduler}@<Sch>
+      requires (!@\libconcept{same_as}@<task_scheduler, remove_cvref_t<Sch>>) && @\libconcept{scheduler}@<Sch>
     explicit task_scheduler(Sch&& sch, Allocator alloc = {});
 
     task_scheduler(const task_scheduler&) = default;
@@ -7047,11 +7046,9 @@ namespace std::execution {
 
     @\seebelow@ schedule();
 
-    friend bool operator==(const task_scheduler& lhs, const task_scheduler& rhs)
-        noexcept;
+    friend bool operator==(const task_scheduler& lhs, const task_scheduler& rhs) noexcept;
     template<class Sch>
-      requires (!@\libconcept{same_as}@<task_scheduler, Sch>)
-      && @\libconcept{scheduler}@<Sch>
+      requires (!@\libconcept{same_as}@<task_scheduler, Sch>) && @\libconcept{scheduler}@<Sch>
     friend bool operator==(const task_scheduler& lhs, const Sch& rhs) noexcept;
 
   private:
