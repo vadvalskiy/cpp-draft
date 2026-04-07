@@ -1201,7 +1201,7 @@ template<class Sch, class Env>
      @\libconcept{same_as}@<completion_signatures<set_stopped_t(), set_value_t()>,
              completion_signatures_of_t<decltype(schedule(declval<Sch>())), Env>>)
      )
-    )
+    );
 \end{codeblock}
 
 \rSec1[exec.recv]{Receivers}
@@ -6876,7 +6876,7 @@ Otherwise,
 @\exposid{adapt-for-await-completion}@(transform_sender(expr, get_env(p))).as_awaitable(p)
 \end{codeblock}
 if this expression is well-formed,
-\tcode{sender_in<Expr, env_of_t<Promise>>} is \tcode{true}, and
+\tcode{\libconcept{sender_in}<Expr, env_of_t<Promise>>} is \tcode{true}, and
 \tcode{\exposid{single-sender-\brk{}value-type}<Expr, env_of_t<Promise>>}
 is well-formed,
 except that \tcode{p} is only evaluated once.
@@ -6887,7 +6887,7 @@ satisfies \tcode{\exposconcept{is-awaiter}<Promise>}.
 \item
 Otherwise,
 \begin{codeblock}
-sender-awaitable{adapt-for-await-completion(transform_sender(expr, get_env(p))), p}
+@\exposid{sender-awaitable}@{@\exposid{adapt-for-await-completion}@(transform_sender(expr, get_env(p))), p}
 \end{codeblock}
 if \tcode{sender_in<Expr, env_of_t<Promise>>} is \tcode{true} and
 \tcode{\exposid{single-sender-value-type}<Expr, env_of_t<Promise>>}
@@ -7033,7 +7033,7 @@ is expression-equivalent to \tcode{sch == other}.
 \pnum
 Let \tcode{sndr} and \tcode{ev} be subexpressions
 such that \tcode{Sndr} is \tcode{decltype((sndr))}.
-If \tcode{sender-for<Sndr, affine_on_t>} is \tcode{false},
+If \tcode{\exposconcept{sender-for}<Sndr, affine_on_t>} is \tcode{false},
 then the expression \tcode{affine_on.transform_sender(sndr, ev)} is ill-formed;
 otherwise, it is equal to:
 \begin{codeblock}
@@ -7079,7 +7079,7 @@ and let \tcode{\placeholder{OutSndr}} be the type \tcode{decltype((\placeholder{
 Let \tcode{\placeholder{out_rcvr}} be a subexpression denoting a receiver that
 has an environment of type \tcode{Env}.
 If \tcode{get_start_scheduler(get_env(\placeholder{out_rcvr}))} is ill-formed or
-does not satisfy \tcode{\exposid{infallible-scheduler}<Env>},
+does not satisfy \tcode{\exposconcept{infallible-scheduler}<Env>},
 then evaluation of
 the expression \tcode{get_completion_signatures<OutSndr, Env>()}
 exits with an exception.
@@ -7205,7 +7205,7 @@ explicit task_scheduler(Sch&& sch, Allocator alloc = {});
 \begin{itemdescr}
 \pnum
 \mandates
-\tcode{Sch} satisfies \tcode{\exposid{infallible-scheduler}<env<>>}.
+\tcode{Sch} satisfies \tcode{\exposconcept{infallible-scheduler}<env<>>}.
 
 \pnum
 \effects
