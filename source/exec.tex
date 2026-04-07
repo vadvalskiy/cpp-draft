@@ -7055,7 +7055,8 @@ namespace std::execution {
     friend bool operator==(const task_scheduler& lhs, const Sch& rhs) noexcept;
 
   private:
-    shared_ptr<system_context_replaceability::parallel_scheduler_backend> @\exposidnc{sch_}@; // \expos; see \ref{exec.sysctxrepl.psb}
+    // see \ref{exec.sysctxrepl.psb}
+    shared_ptr<system_context_replaceability::parallel_scheduler_backend> @\exposidnc{sch_}@;   // \expos
   };
 }
 \end{codeblock}
@@ -7081,7 +7082,9 @@ explicit task_scheduler(Sch&& sch, Allocator alloc = {});
 \pnum
 \effects
 Initialize \exposid{sch_} with
-\tcode{allocate_shared<\exposid{backend-for}<remove_cvref_t<Sch>>>(alloc, std::forward<Sch>(sch))}.
+\begin{codeblock}
+allocate_shared<@\exposid{backend-for}@<remove_cvref_t<Sch>>>(alloc, std::forward<Sch>(sch))
+\end{codeblock}
 
 \pnum
 \recommended
@@ -7216,7 +7219,7 @@ A prvalue \exposid{ts-sndr} whose type models \libconcept{sender} such that:
 is equal to \tcode{*this.}
 \item
 \tcode{get_completion_domain<set_value_t>(get_env(\exposid{ts-sndr}))}
-is expression-equivalent to \tcode{\exposid{ts-domain}()}.
+is expression-equivalent to \tcode{\exposid{ts-do\-main}()}.
 \item
 If a receiver \tcode{rcvr} is connected to \exposid{ts-sndr} and
 the resulting operation state is started,
@@ -7224,7 +7227,7 @@ calls \tcode{\exposid{sch_}->schedule(r, s)}, where
 \begin{itemize}
 \item
 \tcode{r} is a proxy for \tcode{rcvr} with base
-\tcode{system_context_replaceability::eceiver_proxy}\iref{exec.par.scheduler}
+\tcode{system_context_replaceability::receiver_proxy}\iref{exec.par.scheduler}
 and
 \item
 \tcode{s} is a preallocated backend storage for \tcode{r}.
@@ -7274,7 +7277,7 @@ Equivalent to:
 auto& [_, data, child] = bulk_sndr;
 auto& [_, shape, fn] = data;
 auto sch = @\exposid{call-with-default}@(get_completion_scheduler<set_value_t>,
-                                 @\exposid{not-a-scheduler}@(), get_env(child), @\exposid{FWD-ENV}@(env));
+                              @\exposid{not-a-scheduler}@(), get_env(child), @\exposid{FWD-ENV}@(env));
 return @$e$@;
 \end{codeblock}
 where $e$ is \tcode{\exposid{not-a-sender}()}
