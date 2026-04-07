@@ -1289,7 +1289,6 @@ $E$ \defn{inlines the receiver} \tcode{rcvr}
 if the lifetimes of all objects transitively constructed from
 \tcode{rcvr} during the evaluation of $E$
 end within the evaluation of $E$.
-
 \begin{note}
 This means such an expression does not store the receiver in the operation state.
 \end{note}
@@ -1313,13 +1312,14 @@ the temporary materialization conversion to the expression
 \pnum
 Let \tcode{StdRcvr} be a receiver type defined by this document.
 Given some operation state type \tcode{Op},
-it is unspecified whether \tcode{StdRcvr} models \tcode{inlinable_receiver<Op>}.
+it is unspecified
+whether \tcode{StdRcvr} models \tcode{\libconcept{inlinable_receiver}<Op>}.
 
 \pnum
 Let \tcode{StdOp} be some operation state type defined by this document and
 let \tcode{Sndr} and \tcode{Rcvr} be types such that
 \tcode{is_same_v<connect_result_t<Sndr, Rcvr>, StdOp>} is \tcode{true}.
-If \tcode{Rcvr} models \tcode{inlinable_receiver<StdOp>}
+If \tcode{Rcvr} models \tcode{\libconcept{inlinable_receiver}<StdOp>}
 then it is implementation-defined whether,
 given an object \tcode{rcvr} of type \tcode{Rcvr},
 the \tcode{connect} operation which produces an object of type \tcode{StdOp}
