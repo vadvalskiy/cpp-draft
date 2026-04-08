@@ -8725,6 +8725,18 @@ This operator is defined as deleted unless:
 \tcode{is_nothrow_move_constructible_v<T> || is_nothrow_move_constructible_v<E>}
 is \tcode{true}.
 \end{itemize}
+
+%FIXME: Is this supposed to be part of the Remarks clause?
+\pnum
+This operator is trivial if:
+\begin{itemize}
+\item \tcode{is_trivially_copy_constructible_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_copy_assignable_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_destructible_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_copy_constructible_v<E>} is \tcode{true}, and
+\item \tcode{is_trivially_copy_assignable_v<E>} is \tcode{true}, and
+\item \tcode{is_trivially_destructible_v<E>} is \tcode{true}.
+\end{itemize}
 \end{itemdescr}
 
 \indexlibrarymember{operator=}{expected}%
@@ -8782,6 +8794,18 @@ The exception specification is equivalent to:
 is_nothrow_move_assignable_v<T> && is_nothrow_move_constructible_v<T> &&
 is_nothrow_move_assignable_v<E> && is_nothrow_move_constructible_v<E>
 \end{codeblock}
+
+%FIXME: Is this supposed to be part of the Remarks clause?
+\pnum
+This operator is trivial if:
+\begin{itemize}
+\item \tcode{is_trivially_move_constructible_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_move_assignable_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_destructible_v<T>} is \tcode{true}, and
+\item \tcode{is_trivially_move_constructible_v<E>} is \tcode{true}, and
+\item \tcode{is_trivially_move_assignable_v<E>} is \tcode{true}, and
+\item \tcode{is_trivially_destructible_v<E>} is \tcode{true}.
+\end{itemize}
 \end{itemdescr}
 
 \indexlibrarymember{operator=}{expected}%
@@ -9929,6 +9953,14 @@ Otherwise, equivalent to \tcode{\exposid{unex} = rhs.error()}.
 This operator is defined as deleted unless
 \tcode{is_copy_assignable_v<E>} is \tcode{true} and
 \tcode{is_copy_constructible_v<E>} is \tcode{true}.
+
+%FIXME: Is this supposed to be part of the Remarks clause?
+\pnum
+This operator is trivial if
+\tcode{is_trivially_copy_constructible_v<E>},
+\tcode{is_trivially_copy_assigna\-ble_v<E>}, and
+\tcode{is_trivially_destructible_v<E>}
+are all \tcode{true}.
 \end{itemdescr}
 
 \indexlibrarymember{operator=}{expected<void>}%
@@ -9968,6 +10000,14 @@ Otherwise, equivalent to \tcode{\exposid{unex} = std::move(rhs.error())}.
 \remarks
 The exception specification is equivalent to
 \tcode{is_nothrow_move_constructible_v<E> \&\& is_nothrow_move_assignable_v<E>}.
+
+%FIXME: Is this supposed to be part of the Remarks clause?
+\pnum
+This operator is trivial if
+\tcode{is_trivially_move_constructible_v<E>},
+\tcode{is_trivially_move_assigna\-ble_v<E>}, and
+\tcode{is_trivially_destructible_v<E>}
+are all \tcode{true}.
 \end{itemdescr}
 
 \indexlibrarymember{operator=}{expected<void>}%
