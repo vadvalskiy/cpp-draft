@@ -21502,7 +21502,7 @@ template<class OtherIndexType>
 If \tcode{remove_cvref_t<OtherIndexType>} is an integral type other than \tcode{bool},
 then equivalent to \tcode{return i;},
 \item
-otherwise, equivalent to \tcode{return static_cast<index_type>(i);}.
+otherwise, equivalent to \tcode{return static_cast<index_type>(std::forward<OtherIndexType>(\brk{}i));}.
 \end{itemize}
 \begin{note}
 This function will always return an integral type other than \tcode{bool}.
@@ -22449,7 +22449,7 @@ is_same_v<index_sequence_for<Indices...>, index_sequence<P...>>
 is \tcode{true}.
 Equivalent to:
 \begin{codeblock}
-return ((static_cast<index_type>(i) * stride(P)) + ... + 0);
+return ((static_cast<index_type>(std::move(i)) * stride(P)) + ... + 0);
 \end{codeblock}
 \end{itemdescr}
 
@@ -22782,7 +22782,7 @@ is_same_v<index_sequence_for<Indices...>, index_sequence<P...>>
 \end{codeblock}
 is \tcode{true}. Equivalent to:
 \begin{codeblock}
-return ((static_cast<index_type>(i) * stride(P)) + ... + 0);
+return ((static_cast<index_type>(std::move(i)) * stride(P)) + ... + 0);
 \end{codeblock}
 \end{itemdescr}
 
@@ -23146,7 +23146,7 @@ is_same_v<index_sequence_for<Indices...>, index_sequence<P...>>
 is \tcode{true}.
 Equivalent to:
 \begin{codeblock}
-return ((static_cast<index_type>(i) * stride(P)) + ... + 0);
+return ((static_cast<index_type>(std::move(i)) * stride(P)) + ... + 0);
 \end{codeblock}
 \end{itemdescr}
 
@@ -23461,10 +23461,14 @@ otherwise with
 \indexlibraryctor{layout_left_padded::mapping}%
 \begin{itemdecl}
 template<class OtherIndexType>
-constexpr mapping(const extents_type& ext, OtherIndexType pad);
+constexpr mapping(const extents_type& ext, OtherIndexType padding);
 \end{itemdecl}
 
 \begin{itemdescr}
+\pnum
+Let \tcode{pad} be
+\tcode{extents_type::\exposid{index-cast}(std::move(padding))}.
+
 \pnum
 \constraints
 \begin{itemize}
@@ -23480,7 +23484,7 @@ constexpr mapping(const extents_type& ext, OtherIndexType pad);
 \item
 \tcode{pad} is representable as a value of type \tcode{index_type}.
 \item
-\tcode{extents_type::\exposid{index-cast}(pad)} is greater than zero.
+\tcode{pad} is greater than zero.
 \item
 If \exposid{rank_} is greater than one,
 then \tcode{\exposid{LEAST-MULTIPLE-AT-LEAST}(pad, ext.extent(0))}
@@ -23494,7 +23498,7 @@ with $k$ in the range of \range{1}{\exposid{rank_}}
 is representable as a value of type \tcode{index_type}.
 \item
 If \tcode{padding_value} is not equal to \tcode{dynamic_extent},
-\tcode{padding_value} equals \tcode{extents_type::\exposid{in\-dex-cast}(pad)}.
+\tcode{padding_value} equals \tcode{pad}.
 \end{itemize}
 
 \pnum
@@ -23771,7 +23775,7 @@ a multidimensional index in \tcode{extents()}\iref{mdspan.overview}.
 
 \pnum
 \returns
-\tcode{((static_cast<index_type>(idxs) * stride(P_rank)) + ... + 0)}.
+\tcode{((static_cast<index_type>(std::move(idxs)) * stride(P_rank)) + ... + 0)}.
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -24098,10 +24102,14 @@ otherwise with
 \indexlibraryctor{layout_right_padded::mapping}%
 \begin{itemdecl}
 template<class OtherIndexType>
-constexpr mapping(const extents_type& ext, OtherIndexType pad);
+constexpr mapping(const extents_type& ext, OtherIndexType padding);
 \end{itemdecl}
 
 \begin{itemdescr}
+\pnum
+Let \tcode{pad} be
+\tcode{extents_type::\exposid{index-cast}(std::move(padding))}.
+
 \pnum
 \constraints
 \begin{itemize}
@@ -24117,7 +24125,7 @@ constexpr mapping(const extents_type& ext, OtherIndexType pad);
 \item
 \tcode{pad} is representable as a value of type \tcode{index_type}.
 \item
-\tcode{extents_type::\exposid{index-cast}(pad)} is greater than zero.
+\tcode{pad} is greater than zero.
 \item
 If \exposid{rank_} is greater than one,
 then \tcode{\exposid{LEAST-MULTIPLE-AT-LEAST}(pad, ext.extent(\exposid{rank_} - 1))}
@@ -24131,7 +24139,7 @@ with $k$ in the range of \range{0}{\exposid{rank_} - 1}
 is representable as a value of type \tcode{index_type}.
 \item
 If \tcode{padding_value} is not equal to \tcode{dynamic_extent},
-\tcode{padding_value} equals \tcode{extents_type::\linebreak \exposid{index-cast}(pad)}.
+\tcode{padding_value} equals \tcode{pad}.
 \end{itemize}
 
 \pnum
@@ -24406,7 +24414,7 @@ a multidimensional index in \tcode{extents()}\iref{mdspan.overview}.
 
 \pnum
 \returns
-\tcode{((static_cast<index_type>(idxs) * stride(P_rank)) + ... + 0)}.
+\tcode{((static_cast<index_type>(std::move(idxs)) * stride(P_rank)) + ... + 0)}.
 \end{itemdescr}
 
 \indexlibrarymember{layout_right_padded::mapping}{is_always_exhaustive}%
