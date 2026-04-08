@@ -12682,10 +12682,11 @@ namespace std::linalg {
   class @\libglobal{scaled_accessor}@ {
   public:
     using @\libmember{element_type}{scaled_accessor}@ =
-      const decltype(declval<ScalingFactor>() * declval<NestedAccessor::element_type>());
+      const decltype(
+	          declval<ScalingFactor>() * declval<typename NestedAccessor::element_type>());
     using @\libmember{reference}{scaled_accessor}@ = remove_const_t<element_type>;
     using @\libmember{data_handle_type}{scaled_accessor}@ = NestedAccessor::data_handle_type;
-    using @\libmember{offset_policy}{scaled_accessor}@ = scaled_accessor<ScalingFactor, NestedAccessor::offset_policy>;
+    using @\libmember{offset_policy}{scaled_accessor}@ = scaled_accessor<ScalingFactor, typename NestedAccessor::offset_policy>;
 
     constexpr scaled_accessor() = default;
     template<class OtherNestedAccessor>
@@ -12771,7 +12772,7 @@ constexpr reference access(data_handle_type p, size_t i) const;
 \pnum
 \returns
 \begin{codeblock}
-scaling_factor() * NestedAccessor::element_type(@\exposid{nested-accessor}@.access(p, i))
+scaling_factor() * typename NestedAccessor::element_type(@\exposid{nested-accessor}@.access(p, i))
 \end{codeblock}
 \end{itemdescr}
 
@@ -12854,10 +12855,11 @@ namespace std::linalg {
   class @\libglobal{conjugated_accessor}@ {
   public:
     using @\libmember{element_type}{conjugated_accessor}@ =
-      const decltype(@\exposid{conj-if-needed}@(declval<NestedAccessor::element_type>()));
+      const decltype(
+	          @\exposid{conj-if-needed}@(declval<typename NestedAccessor::element_type>()));
     using @\libmember{reference}{conjugated_accessor}@ = remove_const_t<element_type>;
     using @\libmember{data_handle_type}{conjugated_accessor}@ = NestedAccessor::data_handle_type;
-    using @\libmember{offset_policy}{conjugated_accessor}@ = conjugated_accessor<NestedAccessor::offset_policy>;
+    using @\libmember{offset_policy}{conjugated_accessor}@ = conjugated_accessor<typename NestedAccessor::offset_policy>;
 
     constexpr conjugated_accessor() = default;
     constexpr conjugated_accessor(const NestedAccessor& acc);
@@ -12930,7 +12932,10 @@ constexpr reference access(data_handle_type p, size_t i) const;
 \begin{itemdescr}
 \pnum
 \returns
-\tcode{\exposid{conj-if-needed}(NestedAccessor::element_type(\exposid{nested-accessor_}.access(p, i)))}
+\begin{codeblock}
+\exposid{conj-if-needed}(
+  typename NestedAccessor::element_type(\exposid{nested-accessor_}.access(p, i)))
+\end{codeblock}
 \end{itemdescr}
 
 \indexlibrarymember{conjugated_accessor}{offset}%
